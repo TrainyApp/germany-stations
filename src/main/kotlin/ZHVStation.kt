@@ -11,6 +11,16 @@ import java.text.NumberFormat
 import java.util.*
 
 @Serializable
+data class Position(val latitude: Double, val longitude: Double)
+
+@Serializable
+data class ZHVStop(
+    val name: String,
+    val ifopt: String,
+    val position: Position
+)
+
+@Serializable
 data class ZHVStation(
     @SerialName("SeqNo")
     val sequenceNumber: Int,
@@ -49,6 +59,12 @@ data class ZHVStation(
     @SerialName("SEV")
     val hasRailReplacements: DEBoolean
 ) {
+    fun toZHVStop() = ZHVStop(
+        name,
+        dhid,
+        Position(latitude, longitude)
+    )
+
     @OptIn(ExperimentalSerializationApi::class)
     companion object {
         private val csv = Csv {
