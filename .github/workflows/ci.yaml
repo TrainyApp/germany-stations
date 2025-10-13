@@ -49,6 +49,7 @@ jobs:
       - name: Build and push server Docker image
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
