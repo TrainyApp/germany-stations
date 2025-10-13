@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
@@ -29,5 +31,11 @@ tasks.test {
     useJUnitPlatform()
 }
 kotlin {
-    jvmToolchain(24)
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_24
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_24
 }
