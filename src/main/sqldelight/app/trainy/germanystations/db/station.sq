@@ -1,0 +1,2 @@
+getstations:
+SELECT * FROM stations;

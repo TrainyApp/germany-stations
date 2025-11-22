@@ -1,0 +1,42 @@
+CREATE TABLE stations (
+    internalStationId serial PRIMARY KEY,
+
+    availablePhysicalTransports text[] NOT NULL,
+    availableTransports text[] NOT NULL,
+    countryCode text NOT NULL,
+    evaNumber text NOT NULL,
+    municipalityKey text,
+    postalCode text,
+    replacementTransportsAvailable boolean,
+    state text,
+    stationID text,
+    timeZone text NOT NULL,
+    transportAssociations text[] NOT NULL
+);
+
+CREATE TABLE metropolises (
+    id serial PRIMARY KEY,
+    internalStationId serial NOT NULL REFERENCES stations ON DELETE CASCADE,
+    name text NOT NULL,
+    countryCode text NOT NULL
+);
+
+CREATE TABLE positions (
+    id serial PRIMARY KEY,
+    internalStationId serial NOT NULL REFERENCES stations ON DELETE CASCADE,
+    latitude double NOT NULL,
+    longitude double NOT NULL
+);
+
+CREATE TABLE names (
+    id serial PRIMARY KEY,
+    internalStationId serial NOT NULL REFERENCES stations ON DELETE CASCADE,
+    languageCode text NOT NULL,
+    nameLocal text,
+    nameLong text NOT NULL,
+    nameShort text,
+    speechLong text,
+    speechShort text,
+    symbol text,
+    synonyms text[]
+);

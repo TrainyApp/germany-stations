@@ -1,5 +1,10 @@
 package app.trainy.de.stations
 
+import app.cash.sqldelight.driver.jdbc.JdbcDriver
+import app.cash.sqldelight.driver.jdbc.asJdbcDriver
+import app.trainy.germanystations.db.Database
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -17,12 +22,14 @@ fun main() {
     @Suppress("UnusedExpression")
     StationStore
 
+    val (driver, database) = initializePostgres()
+
     embeddedServer(Netty, port = Config.PORT, host = Config.HOST) {
-        module()
+        module(database)
     }.start(wait = true)
 }
 
-private fun Application.module() {
+private fun Application.module(database: Database) {
     install(ContentNegotiation) {
         json()
     }
@@ -30,6 +37,8 @@ private fun Application.module() {
 
 
     routing {
+        RISStationsProxy(database)
+
         post<Stations> {
             val (ids) = call.receive<StationsRequest>()
 
@@ -38,4 +47,13 @@ private fun Application.module() {
             })
         }
     }
+}
+
+fun initializePostgres(): Pair<JdbcDriver, Database> {
+    val config = HikariConfig().apply {
+        jdbcUrl = Config.POSTGRES_URI
+    }
+    val datasource = HikariDataSource(config)
+    val driver = datasource.asJdbcDriver()
+    return driver to Database(driver)
 }

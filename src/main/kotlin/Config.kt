@@ -5,4 +5,5 @@ import dev.schlaubi.envconf.Config as EnvironmentConfig
 object Config : EnvironmentConfig() {
     val HOST by getEnv("::")
     val PORT by getEnv(8080, String::toInt)
+    val POSTGRES_URI by getEnv("postgresql://localhost:5432/germanystations")
 }

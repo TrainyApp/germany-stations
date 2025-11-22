@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
+    alias(libs.plugins.sqldelight)
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
     application
@@ -11,6 +12,7 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    maven("https://europe-west3-maven.pkg.dev/mik-music/trainy-dependencies")
 }
 
 application {
@@ -25,6 +27,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.csv)
     implementation(libs.slf4j.simple)
     implementation(libs.stdx.envconf)
+    implementation(libs.operatorclient)
+    implementation(libs.sqldelight.jdbc.driver)
+    implementation(libs.postgresql)
+    implementation(libs.hikaricp)
+
 }
 
 tasks.test {
@@ -38,4 +45,19 @@ kotlin {
 
 java {
     sourceCompatibility = JavaVersion.VERSION_24
+}
+
+sqldelight {
+    databases {
+        create("Database", Action {
+            packageName = "app.trainy.germanystations.db"
+            dialect(libs.sqldelight.postgresql.dialect)
+
+            schemaOutputDirectory = file("src/main/sqldelight/databases")
+            verifyMigrations = true
+            deriveSchemaFromMigrations = true
+
+
+        })
+    }
 }
