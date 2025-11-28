@@ -25,13 +25,12 @@ dependencies {
     implementation(libs.ktor.server.resources)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.kotlinx.serialization.csv)
-    implementation(libs.slf4j.simple)
     implementation(libs.stdx.envconf)
     implementation(libs.operatorclient)
     implementation(libs.sqldelight.jdbc.driver)
     implementation(libs.postgresql)
     implementation(libs.hikaricp)
-
+    implementation(libs.logback)
 }
 
 tasks.test {

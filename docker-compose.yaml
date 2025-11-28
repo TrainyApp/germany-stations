@@ -1,0 +1,10 @@
+services:
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: germanystations
+      POSTGRES_USER: germanystations
+      POSTGRES_DB: germanystations
+    ports:
+      - "127.0.0.1:5432:5432"

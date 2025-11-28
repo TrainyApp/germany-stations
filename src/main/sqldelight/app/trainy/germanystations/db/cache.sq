@@ -1,6 +1,6 @@
 getStationsByKeyFromCache:
 SELECT * FROM stations WHERE internalStationId IN (
-    SELECT station
+    SELECT internalStationId
     FROM cached_bykeys
     WHERE keyType = ? AND key = ?
 );
@@ -20,17 +20,7 @@ INSERT INTO stations (
     transportAssociations
 )
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (evaNumber) DO UPDATE SET
-    availablePhysicalTransports = excluded.availablePhysicalTransports,
-    availableTransports = excluded.availableTransports,
-    countryCode = excluded.countryCode,
-    municipalityKey = excluded.municipalityKey,
-    postalCode = excluded.postalCode,
-    replacementTransportsAvailable = excluded.replacementTransportsAvailable,
-    state = excluded.state,
-    stationID = excluded.stationID,
-    timeZone = excluded.timeZone,
-    transportAssociations = excluded.transportAssociations;
+ON CONFLICT(evaNumber) DO NOTHING;
 
 insertPositionIfNotExists:
 INSERT INTO positions (
@@ -38,9 +28,7 @@ INSERT INTO positions (
     latitude,
     longitude
 ) VALUES (?, ?, ?)
-ON CONFLICT (internalStationId) DO UPDATE SET
-    latitude = excluded.latitude,
-    longitude = excluded.longitude;
+ON CONFLICT(internalStationId) DO NOTHING;
 
 insertMetropolisIfNotExists:
 INSERT INTO metropolises (
@@ -48,9 +36,7 @@ INSERT INTO metropolises (
     name,
     countryCode
 ) VALUES (?, ?, ?)
-ON CONFLICT (internalStationId) DO UPDATE SET
-    name = excluded.name,
-    countryCode = excluded.countryCode;
+ON CONFLICT(internalStationId) DO NOTHING;
 
 insertNameIfNotExists:
 INSERT INTO names (
@@ -64,17 +50,10 @@ speechShort,
 symbol,
 synonyms
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (internalStationId, languageCode) DO UPDATE SET
-    nameLocal = excluded.nameLocal,
-    nameLong = excluded.nameLong,
-    nameShort = excluded.nameShort,
-    speechLong = excluded.speechLong,
-    speechShort = excluded.speechShort,
-    symbol = excluded.symbol,
-    synonyms = excluded.synonyms;
+ON CONFLICT(internalStationId) DO NOTHING;
 
 getStationFromEvaNumber:
 SELECT * FROM stations WHERE evaNumber = ?;
 
 insertCachedByKey:
-INSERT INTO cached_bykeys (keyType, key, station) VALUES (?, ?, ?);
+INSERT INTO cached_bykeys (keyType, key, internalStationId) VALUES (?, ?, ?);

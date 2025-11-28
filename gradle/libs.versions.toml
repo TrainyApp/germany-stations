@@ -21,6 +21,7 @@ sqldelight-jdbc-driver = { group = "app.cash.sqldelight", name = "jdbc-driver", 
 sqldelight-postgresql-dialect = { group = "app.cash.sqldelight", name = "postgresql-dialect", version.ref = "sqldelight" }
 postgresql = { group = "org.postgresql", name = "postgresql", version = "42.7.7" }
 hikaricp = { group = "com.zaxxer", name = "HikariCP", version = "6.3.0" }
+logback = { group = "ch.qos.logback", name = "logback-classic", version = "1.5.20" }
 
 
 [plugins]

@@ -1,0 +1,4 @@
+currentVersion:
+    SELECT max(id) AS current_version FROM applied_migrations;
+applyMigration:
+    INSERT INTO applied_migrations (id) VALUES (?);

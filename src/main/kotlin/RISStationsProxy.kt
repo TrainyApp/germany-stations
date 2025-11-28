@@ -1,7 +1,10 @@
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package app.trainy.de.stations
 
 import app.trainy.germanystations.db.Database
-import app.trainy.operator.client.operator.db.ris.PrivateRISOperator
+import app.trainy.operator.client.operator.db.ris.KeyType
+import app.trainy.operator.client.operator.db.ris.RISOperator
 import app.trainy.operator.client.operator.db.ris.RISStations
 import app.trainy.types.data.Position
 import io.ktor.client.call.*
@@ -12,7 +15,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 
-fun Route.RISStationsProxy(database: Database, risOperator: PrivateRISOperator) {
+fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     get<RISStations.StopPlaces.Specific.Keys> {
 
     }
@@ -25,7 +28,7 @@ fun Route.RISStationsProxy(database: Database, risOperator: PrivateRISOperator) 
             val stations = risOperator.stationByKeyRequest(key, keyType).body<StationSearchResponse>().stopPlaces;
             call.respond(stations)
             stations.forEach {station ->
-                station.insert(database)
+                station.insert(database, keyType, key)
             }
         }
     }
@@ -51,15 +54,14 @@ data class StationSearchResponse(
 @Serializable
 data class Name(
     val nameLong: String,
-    val nameShort: String,
-    val nameLocal: String,
+    val nameShort: String? = null,
+    val nameLocal: String? = null,
     val speechLong: String,
     val speechShort: String,
-    val symbol: String,
+    val symbol: String? = null,
     val synonyms: List<String>
 )
 
-@OptIn(ExperimentalSerializationApi::class)
 @JsonIgnoreUnknownKeys
 @Serializable
 data class RISStation(
@@ -78,7 +80,7 @@ data class RISStation(
     val timeZone: String,
     val position: Position
 ) {
-    fun insert(database: Database) {
+    fun insert(database: Database, keyType: KeyType, key: String) {
         database.cacheQueries.insertStationIfNotExists(
             availableTransports = availableTransports.toTypedArray(),
             stationID = stationID,
@@ -92,26 +94,26 @@ data class RISStation(
             availablePhysicalTransports = availablePhysicalTransports.toTypedArray(),
             replacementTransportsAvailable = replacementTransportsAvailable,
         )
-        val dbStation = database.cacheQueries.getStationFromEvaNumber(evaNumber).executeAsOneOrNull()
-        if (dbStation == null) {
+        val dbStation = database.cacheQueries.getStationFromEvaNumber(evaNumber).executeAsList()
+        if (dbStation.isEmpty()) {
             println("oops, station not found after insert: $evaNumber")
             return
         }
         database.cacheQueries.insertPositionIfNotExists(
-            internalStationId = dbStation.internalStationId,
-            latitude = position.latitude.toString(),
-            longitude = position.longitude.toString()
+            internalStationId = dbStation[0].internalStationId,
+            latitude = position.latitude.toBigDecimal(),
+            longitude = position.longitude.toBigDecimal()
         )
         metropolis.entries.forEach { (countryCode, name) ->
             database.cacheQueries.insertMetropolisIfNotExists(
-                internalStationId = dbStation.internalStationId,
+                internalStationId = dbStation[0].internalStationId,
                 countryCode = countryCode,
                 name = name
             )
         }
         names.entries.forEach { (languageCode, name) ->
             database.cacheQueries.insertNameIfNotExists(
-                internalStationId = dbStation.internalStationId,
+                internalStationId = dbStation[0].internalStationId,
                 languageCode = languageCode,
                 nameLocal = name.nameLocal,
                 nameLong = name.nameLong,
@@ -122,5 +124,10 @@ data class RISStation(
                 synonyms = name.synonyms.toTypedArray(),
             )
         }
+        database.cacheQueries.insertCachedByKey(
+            keyType = keyType.name,
+            key = key,
+            internalStationId = dbStation[0].internalStationId,
+        )
     }
 }
