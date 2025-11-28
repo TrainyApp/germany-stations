@@ -10,11 +10,13 @@ import app.trainy.germanystations.db.Stations
 import app.trainy.operator.client.operator.db.ris.KeyType
 import app.trainy.operator.client.operator.db.ris.RISOperator
 import app.trainy.operator.client.operator.db.ris.RISStations
+import app.trainy.operator.client.operator.db.ris.StationKeySearchRequest
 import app.trainy.types.data.Position
 import io.ktor.client.call.*
+import io.ktor.server.request.receive
 import io.ktor.server.resources.*
 import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.server.routing.Route
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonIgnoreUnknownKeys
@@ -25,25 +27,28 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     }
 
     get<RISStations.StopPlaces.ByKey> { (key, keyType) ->
-        val cache = database.cacheQueries.getStationsByKeyFromCache(keyType.name, key).executeAsList()
-        if (!cache.isEmpty()) {
-            val risCache = cache.map { station ->
-                val names = database.cacheQueries.getNamesFromStation(station.internalStationId).executeAsList()
-                val position = database.cacheQueries.getPositionFromStation(station.internalStationId).executeAsOneOrNull()
-                val metropolis = database.cacheQueries.getMetropolisFromStation(station.internalStationId).executeAsList()
-                station.toRISStation(
-                    names,
-                    metropolis,
-                    position
-                )
-            }
-            call.respond(risCache)
+        val cache = getStationFromCache(database, keyType.name, key)
+        if (cache != null) {
+            call.respond(cache)
         } else {
             val stations = risOperator.stationByKeyRequest(key, keyType).body<StationSearchResponse>().stopPlaces;
             call.respond(stations)
             stations.forEach {station ->
                 station.insert(database, keyType, key)
             }
+        }
+    }
+
+    post<RISStations.StopPlaces.ByKeys> {
+        val (keyType, keys) = call.receive<StationKeySearchRequest>()
+        val cachedKeys = keys.map {
+            Pair(it.key, getStationFromCache(database, keyType.name, it.key))
+        }
+        cachedKeys.filter {
+            it.second != null
+        }.map {
+//            risOperator.stationByKeyRequest(it.first, keyType).body<StationSearchResponse>().stopPlaces;
+// TODO: Create KeyType Converter
         }
     }
 
@@ -54,10 +59,24 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     get<RISStations.StopPlaces.ByPosition> {
 
     }
+}
 
-    get<RISStations.StopPlaces.ByKeys> {
-
+fun getStationFromCache(database: Database, keyType: String, key: String): List<RISStation>? {
+    val cache = database.cacheQueries.getStationsByKeyFromCache(keyType, key).executeAsList()
+    if (!cache.isEmpty()) {
+        val risCache = cache.map { station ->
+            val names = database.cacheQueries.getNamesFromStation(station.internalStationId).executeAsList()
+            val position = database.cacheQueries.getPositionFromStation(station.internalStationId).executeAsOneOrNull()
+            val metropolis = database.cacheQueries.getMetropolisFromStation(station.internalStationId).executeAsList()
+            station.toRISStation(
+                names,
+                metropolis,
+                position
+            )
+        }
+        return risCache
     }
+    return null
 }
 
 fun Stations.toRISStation(names: List<Names>, metropolis: List<Metropolises>, position: Positions?): RISStation =
