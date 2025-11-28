@@ -5,6 +5,15 @@ SELECT * FROM stations WHERE internalStationId IN (
     WHERE keyType = ? AND key = ?
 );
 
+getNamesFromStation:
+SELECT * FROM names WHERE internalStationId = ?;
+
+getPositionFromStation:
+SELECT * FROM positions WHERE internalStationId = ?;
+
+getMetropolisFromStation:
+SELECT * FROM metropolises WHERE internalStationId = ?;
+
 insertStationIfNotExists:
 INSERT INTO stations (
     availablePhysicalTransports,

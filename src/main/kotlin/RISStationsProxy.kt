@@ -3,6 +3,10 @@
 package app.trainy.de.stations
 
 import app.trainy.germanystations.db.Database
+import app.trainy.germanystations.db.Metropolises
+import app.trainy.germanystations.db.Names
+import app.trainy.germanystations.db.Positions
+import app.trainy.germanystations.db.Stations
 import app.trainy.operator.client.operator.db.ris.KeyType
 import app.trainy.operator.client.operator.db.ris.RISOperator
 import app.trainy.operator.client.operator.db.ris.RISStations
@@ -23,7 +27,17 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     get<RISStations.StopPlaces.ByKey> { (key, keyType) ->
         val cache = database.cacheQueries.getStationsByKeyFromCache(keyType.name, key).executeAsList()
         if (!cache.isEmpty()) {
-            call.respond(cache)
+            val risCache = cache.map { station ->
+                val names = database.cacheQueries.getNamesFromStation(station.internalStationId).executeAsList()
+                val position = database.cacheQueries.getPositionFromStation(station.internalStationId).executeAsOneOrNull()
+                val metropolis = database.cacheQueries.getMetropolisFromStation(station.internalStationId).executeAsList()
+                station.toRISStation(
+                    names,
+                    metropolis,
+                    position
+                )
+            }
+            call.respond(risCache)
         } else {
             val stations = risOperator.stationByKeyRequest(key, keyType).body<StationSearchResponse>().stopPlaces;
             call.respond(stations)
@@ -46,6 +60,39 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     }
 }
 
+fun Stations.toRISStation(names: List<Names>, metropolis: List<Metropolises>, position: Positions?): RISStation =
+    RISStation(
+        evaNumber = evaNumber,
+        stationID = stationID,
+        names = names.associate { it.languageCode to it.toRISName() },
+        metropolis = metropolis.associate { it.countryCode to it.name },
+        availableTransports = availableTransports.toList(),
+        replacementTransportsAvailable = replacementTransportsAvailable,
+        availablePhysicalTransports = availablePhysicalTransports.toList(),
+        transportAssociations = transportAssociations.toList(),
+        countryCode = countryCode,
+        postalCode = postalCode,
+        state = state,
+        municipalityKey = municipalityKey,
+        timeZone = timeZone,
+        position = position?.toRISPosition()
+    )
+
+fun Names.toRISName(): Name = Name(
+    nameLong = nameLong,
+    nameShort = nameShort,
+    nameLocal = nameLocal,
+    speechLong = speechLong,
+    speechShort = speechShort,
+    symbol = symbol,
+    synonyms = synonyms?.toList()
+)
+
+fun Positions.toRISPosition(): Position = Position(
+    latitude = latitude.toDouble(),
+    longitude = longitude.toDouble()
+)
+
 @Serializable
 data class StationSearchResponse(
     val stopPlaces: List<RISStation>
@@ -56,29 +103,29 @@ data class Name(
     val nameLong: String,
     val nameShort: String? = null,
     val nameLocal: String? = null,
-    val speechLong: String,
-    val speechShort: String,
+    val speechLong: String? = null,
+    val speechShort: String? = null,
     val symbol: String? = null,
-    val synonyms: List<String>
+    val synonyms: List<String>? = null
 )
 
 @JsonIgnoreUnknownKeys
 @Serializable
 data class RISStation(
     val evaNumber: String,
-    val stationID: String,
+    val stationID: String? = null,
     val names: Map<String, Name>,
-    val metropolis: Map<String, String>,
+    val metropolis: Map<String, String>? = null,
     val availableTransports: List<String>,
-    val replacementTransportsAvailable: Boolean,
+    val replacementTransportsAvailable: Boolean? = null,
     val availablePhysicalTransports: List<String>,
     val transportAssociations: List<String>,
     val countryCode: String,
-    val postalCode: String,
-    val state: String,
-    val municipalityKey: String,
+    val postalCode: String? = null,
+    val state: String? = null,
+    val municipalityKey: String? = null,
     val timeZone: String,
-    val position: Position
+    val position: Position? = null
 ) {
     fun insert(database: Database, keyType: KeyType, key: String) {
         database.cacheQueries.insertStationIfNotExists(
@@ -99,12 +146,14 @@ data class RISStation(
             println("oops, station not found after insert: $evaNumber")
             return
         }
-        database.cacheQueries.insertPositionIfNotExists(
-            internalStationId = dbStation[0].internalStationId,
-            latitude = position.latitude.toBigDecimal(),
-            longitude = position.longitude.toBigDecimal()
-        )
-        metropolis.entries.forEach { (countryCode, name) ->
+        if (position != null) {
+            database.cacheQueries.insertPositionIfNotExists(
+                internalStationId = dbStation[0].internalStationId,
+                latitude = position.latitude.toBigDecimal(),
+                longitude = position.longitude.toBigDecimal()
+            )
+        }
+        metropolis?.entries?.forEach { (countryCode, name) ->
             database.cacheQueries.insertMetropolisIfNotExists(
                 internalStationId = dbStation[0].internalStationId,
                 countryCode = countryCode,
@@ -121,7 +170,7 @@ data class RISStation(
                 speechLong = name.speechLong,
                 speechShort = name.speechShort,
                 symbol = name.symbol,
-                synonyms = name.synonyms.toTypedArray(),
+                synonyms = name.synonyms?.toTypedArray(),
             )
         }
         database.cacheQueries.insertCachedByKey(
