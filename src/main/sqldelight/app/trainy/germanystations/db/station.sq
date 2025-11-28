@@ -1,2 +1,0 @@
-getstations:
-SELECT * FROM stations;

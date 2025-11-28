@@ -40,3 +40,10 @@ CREATE TABLE names (
     symbol text,
     synonyms text[]
 );
+
+CREATE TABLE cached_bykeys (
+    id serial PRIMARY KEY,
+    keyType text NOT NULL,
+    key text NOT NULL,
+    station internalStationId NOT NULL REFERENCES stations ON DELETE CASCADE
+);

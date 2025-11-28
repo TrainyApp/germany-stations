@@ -1,0 +1,80 @@
+getStationsByKeyFromCache:
+SELECT * FROM stations WHERE internalStationId IN (
+    SELECT station
+    FROM cached_bykeys
+    WHERE keyType = ? AND key = ?
+);
+
+insertStationIfNotExists:
+INSERT INTO stations (
+    availablePhysicalTransports,
+    availableTransports,
+    countryCode,
+    evaNumber,
+    municipalityKey,
+    postalCode,
+    replacementTransportsAvailable,
+    state,
+    stationID,
+    timeZone,
+    transportAssociations
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (evaNumber) DO UPDATE SET
+    availablePhysicalTransports = excluded.availablePhysicalTransports,
+    availableTransports = excluded.availableTransports,
+    countryCode = excluded.countryCode,
+    municipalityKey = excluded.municipalityKey,
+    postalCode = excluded.postalCode,
+    replacementTransportsAvailable = excluded.replacementTransportsAvailable,
+    state = excluded.state,
+    stationID = excluded.stationID,
+    timeZone = excluded.timeZone,
+    transportAssociations = excluded.transportAssociations;
+
+insertPositionIfNotExists:
+INSERT INTO positions (
+    internalStationId,
+    latitude,
+    longitude
+) VALUES (?, ?, ?)
+ON CONFLICT (internalStationId) DO UPDATE SET
+    latitude = excluded.latitude,
+    longitude = excluded.longitude;
+
+insertMetropolisIfNotExists:
+INSERT INTO metropolises (
+    internalStationId,
+    name,
+    countryCode
+) VALUES (?, ?, ?)
+ON CONFLICT (internalStationId) DO UPDATE SET
+    name = excluded.name,
+    countryCode = excluded.countryCode;
+
+insertNameIfNotExists:
+INSERT INTO names (
+internalStationId,
+languageCode,
+nameLocal,
+nameLong,
+nameShort,
+speechLong,
+speechShort,
+symbol,
+synonyms
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (internalStationId, languageCode) DO UPDATE SET
+    nameLocal = excluded.nameLocal,
+    nameLong = excluded.nameLong,
+    nameShort = excluded.nameShort,
+    speechLong = excluded.speechLong,
+    speechShort = excluded.speechShort,
+    symbol = excluded.symbol,
+    synonyms = excluded.synonyms;
+
+getStationFromEvaNumber:
+SELECT * FROM stations WHERE evaNumber = ?;
+
+insertCachedByKey:
+INSERT INTO cached_bykeys (keyType, key, station) VALUES (?, ?, ?);
