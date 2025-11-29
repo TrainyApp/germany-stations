@@ -4,8 +4,6 @@ CREATE TABLE IF NOT EXISTS applied_migrations (
 );
 
 CREATE TABLE IF NOT EXISTS stations (
-    internalStationId serial UNIQUE NOT NULL,
-
     availablePhysicalTransports text[] NOT NULL,
     availableTransports text[] NOT NULL,
     countryCode text NOT NULL,
@@ -20,22 +18,19 @@ CREATE TABLE IF NOT EXISTS stations (
 );
 
 CREATE TABLE IF NOT EXISTS metropolises (
-    id serial,
-    internalStationId serial REFERENCES stations(internalStationId) NOT NULL PRIMARY KEY UNIQUE,
+    evaNumber text REFERENCES stations(evaNumber) NOT NULL PRIMARY KEY UNIQUE,
     name text NOT NULL,
     countryCode text NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS positions (
-    id serial,
-    internalStationId serial REFERENCES stations(internalStationId) NOT NULL PRIMARY KEY UNIQUE,
+    evaNumber text REFERENCES stations(evaNumber) NOT NULL PRIMARY KEY UNIQUE,
     latitude decimal NOT NULL,
     longitude decimal NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS names (
-    id serial,
-    internalStationId serial REFERENCES stations(internalStationId) NOT NULL PRIMARY KEY UNIQUE,
+    evaNumber text REFERENCES stations(evaNumber) NOT NULL PRIMARY KEY UNIQUE,
     languageCode text NOT NULL,
     nameLocal text,
     nameLong text NOT NULL,
@@ -47,10 +42,9 @@ CREATE TABLE IF NOT EXISTS names (
 );
 
 CREATE TABLE IF NOT EXISTS cached_bykeys (
-    id serial,
-    internalStationId serial REFERENCES stations(internalStationId) NOT NULL,
     keyType text NOT NULL,
     key text NOT NULL,
-    PRIMARY KEY(id, internalStationId),
-    UNIQUE(id, internalStationId)
+    evaNumbers text[] NOT NULL,
+    PRIMARY KEY(keyType, key),
+    UNIQUE(keyType, key)
 );

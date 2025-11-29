@@ -1,18 +1,16 @@
 getStationsByKeyFromCache:
-SELECT * FROM stations WHERE internalStationId IN (
-    SELECT internalStationId
-    FROM cached_bykeys
-    WHERE keyType = ? AND key = ?
-);
+SELECT s.* FROM cached_bykeys c
+JOIN stations s ON s.evaNumber = ANY(c.evaNumbers)
+WHERE c.keyType = ? AND c.key = ?;
 
 getNamesFromStation:
-SELECT * FROM names WHERE internalStationId = ?;
+SELECT * FROM names WHERE evaNumber = ?;
 
 getPositionFromStation:
-SELECT * FROM positions WHERE internalStationId = ?;
+SELECT * FROM positions WHERE evaNumber = ?;
 
 getMetropolisFromStation:
-SELECT * FROM metropolises WHERE internalStationId = ?;
+SELECT * FROM metropolises WHERE evaNumber = ?;
 
 insertStationIfNotExists:
 INSERT INTO stations (
@@ -33,23 +31,23 @@ ON CONFLICT(evaNumber) DO NOTHING;
 
 insertPositionIfNotExists:
 INSERT INTO positions (
-    internalStationId,
+    evaNumber,
     latitude,
     longitude
 ) VALUES (?, ?, ?)
-ON CONFLICT(internalStationId) DO NOTHING;
+ON CONFLICT(evaNumber) DO NOTHING;
 
 insertMetropolisIfNotExists:
 INSERT INTO metropolises (
-    internalStationId,
+    evaNumber,
     name,
     countryCode
 ) VALUES (?, ?, ?)
-ON CONFLICT(internalStationId) DO NOTHING;
+ON CONFLICT(evaNumber) DO NOTHING;
 
 insertNameIfNotExists:
 INSERT INTO names (
-internalStationId,
+evaNumber,
 languageCode,
 nameLocal,
 nameLong,
@@ -59,7 +57,7 @@ speechShort,
 symbol,
 synonyms
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(internalStationId) DO NOTHING;
+ON CONFLICT(evaNumber) DO NOTHING;
 
 getStationFromEvaNumber:
 SELECT * FROM stations WHERE evaNumber = ?;
@@ -68,6 +66,6 @@ insertCachedByKey:
 INSERT INTO cached_bykeys (
 keyType,
 key,
-internalStationId
+evaNumbers
 ) VALUES (?, ?, ?)
-ON CONFLICT(keyType, key, internalStationId) DO NOTHING;
+ON CONFLICT(keyType, key) DO NOTHING;

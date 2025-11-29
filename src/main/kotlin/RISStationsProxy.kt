@@ -31,11 +31,12 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
         if (cache != null) {
             call.respond(cache)
         } else {
-            val stations = risOperator.stationByKeyRequest(key, keyType).body<StationSearchResponse>().stopPlaces;
+            val stations = risOperator.stationByKeyRequest(key, keyType).body<StationSearchResponse>().stopPlaces
             call.respond(stations)
             stations.forEach { station ->
-                station.insert(database, keyType, key)
+                station.insert(database)
             }
+            database.cacheQueries.insertCachedByKey(keyType.name, key, stations.map { it.evaNumber }.toTypedArray())
         }
     }
 
@@ -62,8 +63,9 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
         call.respond(result)
         fetched.forEach { (key, stations) ->
             stations.forEach { station ->
-                station.insert(database, keyType.toRISKeyType(), key)
+                station.insert(database)
             }
+            database.cacheQueries.insertCachedByKey(keyType.name, key, stations.map { it.evaNumber }.toTypedArray())
         }
     }
 
@@ -80,9 +82,9 @@ fun getStationFromCache(database: Database, keyType: String, key: String): List<
     val cache = database.cacheQueries.getStationsByKeyFromCache(keyType, key).executeAsList()
     if (!cache.isEmpty()) {
         val risCache = cache.map { station ->
-            val names = database.cacheQueries.getNamesFromStation(station.internalStationId).executeAsList()
-            val position = database.cacheQueries.getPositionFromStation(station.internalStationId).executeAsOneOrNull()
-            val metropolis = database.cacheQueries.getMetropolisFromStation(station.internalStationId).executeAsList()
+            val names = database.cacheQueries.getNamesFromStation(station.evaNumber).executeAsList()
+            val position = database.cacheQueries.getPositionFromStation(station.evaNumber).executeAsOneOrNull()
+            val metropolis = database.cacheQueries.getMetropolisFromStation(station.evaNumber).executeAsList()
             station.toRISStation(
                 names,
                 metropolis,
@@ -169,7 +171,7 @@ data class RISStation(
     val timeZone: String,
     val position: Position? = null
 ) {
-    fun insert(database: Database, keyType: KeyType, key: String) {
+    fun insert(database: Database) {
         database.cacheQueries.insertStationIfNotExists(
             availableTransports = availableTransports.toTypedArray(),
             stationID = stationID,
@@ -183,28 +185,23 @@ data class RISStation(
             availablePhysicalTransports = availablePhysicalTransports.toTypedArray(),
             replacementTransportsAvailable = replacementTransportsAvailable,
         )
-        val dbStation = database.cacheQueries.getStationFromEvaNumber(evaNumber).executeAsList()
-        if (dbStation.isEmpty()) {
-            println("oops, station not found after insert: $evaNumber")
-            return
-        }
         if (position != null) {
             database.cacheQueries.insertPositionIfNotExists(
-                internalStationId = dbStation[0].internalStationId,
+                evaNumber = evaNumber,
                 latitude = position.latitude.toBigDecimal(),
                 longitude = position.longitude.toBigDecimal()
             )
         }
         metropolis?.entries?.forEach { (countryCode, name) ->
             database.cacheQueries.insertMetropolisIfNotExists(
-                internalStationId = dbStation[0].internalStationId,
+                evaNumber = evaNumber,
                 countryCode = countryCode,
                 name = name
             )
         }
         names.entries.forEach { (languageCode, name) ->
             database.cacheQueries.insertNameIfNotExists(
-                internalStationId = dbStation[0].internalStationId,
+                evaNumber = evaNumber,
                 languageCode = languageCode,
                 nameLocal = name.nameLocal,
                 nameLong = name.nameLong,
@@ -215,10 +212,5 @@ data class RISStation(
                 synonyms = name.synonyms?.toTypedArray(),
             )
         }
-        database.cacheQueries.insertCachedByKey(
-            keyType = keyType.name,
-            key = key,
-            internalStationId = dbStation[0].internalStationId,
-        )
     }
 }
