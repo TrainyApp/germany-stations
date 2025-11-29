@@ -69,3 +69,14 @@ key,
 evaNumbers
 ) VALUES (?, ?, ?)
 ON CONFLICT(keyType, key) DO NOTHING;
+
+getKeys:
+SELECT keyType, key FROM keys WHERE evaNumber = ?;
+
+insertKey:
+INSERT INTO keys (
+evaNumber,
+keyType,
+key
+) VALUES (?,?,?)
+ON CONFLICT (evaNumber, keyType) DO NOTHING;

@@ -48,3 +48,11 @@ CREATE TABLE IF NOT EXISTS cached_bykeys (
     PRIMARY KEY(keyType, key),
     UNIQUE(keyType, key)
 );
+
+CREATE TABLE IF NOT EXISTS keys (
+    evaNumber text NOT NULL,
+    keyType text NOT NULL,
+    key text NOT NULL,
+    PRIMARY KEY(evaNumber, keyType),
+    UNIQUE(evaNumber, keyType)
+);

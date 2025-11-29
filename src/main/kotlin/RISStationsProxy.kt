@@ -11,6 +11,7 @@ import app.trainy.operator.client.operator.db.ris.KeyType
 import app.trainy.operator.client.operator.db.ris.RISOperator
 import app.trainy.operator.client.operator.db.ris.RISStations
 import app.trainy.operator.client.operator.db.ris.StationKeySearchRequest
+import app.trainy.operator.client.operator.db.ris.StationKeys
 import app.trainy.types.data.Position
 import io.ktor.client.call.*
 import io.ktor.server.request.receive
@@ -23,7 +24,23 @@ import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 
 fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     get<RISStations.StopPlaces.Specific.Keys> {
-
+        val evaNumber = call.pathParameters["evaNumber"] ?: return@get
+        val cache = database.cacheQueries.getKeys(evaNumber).executeAsList()
+        if (cache.isEmpty()) {
+            val ris = risOperator.getStationKeys(evaNumber)
+            call.respond(ris)
+            ris.keys.forEach {
+                database.cacheQueries.insertKey(evaNumber, it.type.name, it.key)
+            }
+        } else {
+            call.respond(
+                StationKeys(
+                    cache.mapNotNull {
+                        it.keyType.toKeyType()?.let { type -> StationKeys.Key(type = type, key = it.key) }
+                    }
+                )
+            )
+        }
     }
 
     get<RISStations.StopPlaces.ByKey> { (key, keyType) ->
@@ -78,6 +95,22 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     }
 }
 
+fun String.toKeyType(): KeyType? =
+    when (this) {
+        "IFOPT" -> KeyType.IFOPT
+        "EVA" -> KeyType.EVA
+        "RL100" -> KeyType.RL100
+        "RL100_ALTERNATIVE" -> KeyType.RL100_ALTERNATIVE
+        "EPA" -> KeyType.EPA
+        "STADA" -> KeyType.STADA
+        "IBNR" -> KeyType.IBNR
+        "EBHF" -> KeyType.EBHF
+        "UIC" -> KeyType.UIC
+        "PLC" -> KeyType.PLC
+        else -> null
+    }
+
+
 fun getStationFromCache(database: Database, keyType: String, key: String): List<RISStation>? {
     val cache = database.cacheQueries.getStationsByKeyFromCache(keyType, key).executeAsList()
     if (!cache.isEmpty()) {
@@ -114,13 +147,13 @@ fun Stations.toRISStation(names: List<Names>, metropolis: List<Metropolises>, po
         position = position?.toRISPosition()
     )
 
-fun StationKeySearchRequest.KeyType.toRISKeyType(): KeyType {
-    return when (this) {
+fun StationKeySearchRequest.KeyType.toRISKeyType(): KeyType =
+    when (this) {
         StationKeySearchRequest.KeyType.EVA -> KeyType.EVA
         StationKeySearchRequest.KeyType.STADA -> KeyType.STADA
         StationKeySearchRequest.KeyType.RL100 -> KeyType.RL100
     }
-}
+
 
 fun Names.toRISName(): Name = Name(
     nameLong = nameLong,
