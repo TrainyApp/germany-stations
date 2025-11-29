@@ -65,4 +65,9 @@ getStationFromEvaNumber:
 SELECT * FROM stations WHERE evaNumber = ?;
 
 insertCachedByKey:
-INSERT INTO cached_bykeys (keyType, key, internalStationId) VALUES (?, ?, ?);
+INSERT INTO cached_bykeys (
+keyType,
+key,
+internalStationId
+) VALUES (?, ?, ?)
+ON CONFLICT(keyType, key, internalStationId) DO NOTHING;

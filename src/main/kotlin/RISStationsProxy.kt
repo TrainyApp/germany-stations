@@ -33,7 +33,7 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
         } else {
             val stations = risOperator.stationByKeyRequest(key, keyType).body<StationSearchResponse>().stopPlaces;
             call.respond(stations)
-            stations.forEach {station ->
+            stations.forEach { station ->
                 station.insert(database, keyType, key)
             }
         }
@@ -44,11 +44,27 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
         val cachedKeys = keys.map {
             Pair(it.key, getStationFromCache(database, keyType.name, it.key))
         }
-        cachedKeys.filter {
-            it.second != null
+        val fetched = cachedKeys.filter {
+            it.second == null
         }.map {
-//            risOperator.stationByKeyRequest(it.first, keyType).body<StationSearchResponse>().stopPlaces;
-// TODO: Create KeyType Converter
+            println(it)
+            Pair(it.first,
+                risOperator.stationByKeyRequest(it.first, keyType.toRISKeyType())
+                    .body<StationSearchResponse>().stopPlaces
+            )
+        }
+        val result = (cachedKeys + fetched).filter {
+            it.second != null
+        }.associateBy {
+            it.first
+        }.mapValues {
+            it.value.second!!
+        }
+        call.respond(result)
+        fetched.forEach { (key, stations) ->
+            stations.forEach { station ->
+                station.insert(database, keyType.toRISKeyType(), key)
+            }
         }
     }
 
@@ -96,6 +112,14 @@ fun Stations.toRISStation(names: List<Names>, metropolis: List<Metropolises>, po
         timeZone = timeZone,
         position = position?.toRISPosition()
     )
+
+fun StationKeySearchRequest.KeyType.toRISKeyType(): KeyType {
+    return when (this) {
+        StationKeySearchRequest.KeyType.EVA -> KeyType.EVA
+        StationKeySearchRequest.KeyType.STADA -> KeyType.STADA
+        StationKeySearchRequest.KeyType.RL100 -> KeyType.RL100
+    }
+}
 
 fun Names.toRISName(): Name = Name(
     nameLong = nameLong,
