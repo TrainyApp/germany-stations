@@ -44,22 +44,21 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
         val cachedKeys = keys.map {
             Pair(it.key, getStationFromCache(database, keyType.name, it.key))
         }
-        val fetched = cachedKeys.filter {
-            it.second == null
-        }.map {
-            println(it)
-            Pair(it.first,
-                risOperator.stationByKeyRequest(it.first, keyType.toRISKeyType())
+        val fetched = cachedKeys.filter { (_, stations) ->
+            stations == null
+        }.map { (key, _) ->
+            Pair(
+                key,
+                risOperator.stationByKeyRequest(key, keyType.toRISKeyType())
                     .body<StationSearchResponse>().stopPlaces
             )
         }
-        val result = (cachedKeys + fetched).filter {
-            it.second != null
-        }.associateBy {
-            it.first
-        }.mapValues {
-            it.value.second!!
-        }
+        val result = (cachedKeys + fetched).filter { (_, stations) ->
+            stations != null
+        }.associateBy(
+            { (key, _) -> key },
+            { (_, stations) -> stations!! }
+        )
         call.respond(result)
         fetched.forEach { (key, stations) ->
             stations.forEach { station ->
