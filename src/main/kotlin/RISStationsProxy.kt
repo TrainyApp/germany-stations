@@ -23,8 +23,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 
 fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
-    get<RISStations.StopPlaces.Specific.Keys> {
-        val evaNumber = call.pathParameters["evaNumber"] ?: return@get
+    get<RISStations.StopPlaces.Specific.Keys> { route ->
+        val evaNumber = route.specific.evaNumber
         val cache = database.cacheQueries.getKeys(evaNumber).executeAsList()
         if (cache.isEmpty()) {
             val ris = risOperator.getStationKeys(evaNumber)
@@ -86,12 +86,25 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
         }
     }
 
-    get<RISStations.StopPlaces.ByName> {
-
+    get<RISStations.StopPlaces.ByName> { route ->
+        val ris = risOperator.searchStationsRequest(
+            query = route.query,
+            limit = route.limit ?: 10,
+            groupBy = route.groupBy,
+            sortBy = route.sortBy
+        )
+        call.respond(ris.body<app.trainy.operator.client.operator.db.ris.StationSearchResponse>())
     }
 
-    get<RISStations.StopPlaces.ByPosition> {
-
+    get<RISStations.StopPlaces.ByPosition> { route ->
+        val ris = risOperator.searchStationsNearbyRequest(
+            latitude = route.latitude,
+            longitude = route.longitude,
+            radius = route.radius,
+            groupBy = route.groupBy,
+            limit = route.limit ?: 10
+        )
+        call.respond(ris.body<app.trainy.operator.client.operator.db.ris.StationSearchResponse>())
     }
 }
 

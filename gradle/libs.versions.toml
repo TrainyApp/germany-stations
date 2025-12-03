@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.2.20"
 ktor = "3.3.1"
-trainy = "1.12.23-SNAPSHOT"
+trainy = "1.13.8-SNAPSHOT"
 sqldelight = "2.2.1"
 
 [libraries]
