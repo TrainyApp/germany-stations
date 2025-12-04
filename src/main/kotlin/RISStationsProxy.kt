@@ -25,12 +25,12 @@ import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     get<RISStations.StopPlaces.Specific.Keys> { route ->
         val evaNumber = route.specific.evaNumber
-        val cache = database.cacheQueries.getKeys(evaNumber).executeAsList()
+        val cache = database.keyQueries.getKeys(evaNumber).executeAsList()
         if (cache.isEmpty()) {
             val ris = risOperator.getStationKeys(evaNumber)
             call.respond(ris)
             ris.keys.forEach {
-                database.cacheQueries.insertKey(evaNumber, it.type.name, it.key)
+                database.keyQueries.insertKey(evaNumber, it.type.name, it.key)
             }
         } else {
             call.respond(
@@ -53,7 +53,7 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
             stations.forEach { station ->
                 station.insert(database)
             }
-            database.cacheQueries.insertCachedByKey(keyType.name, key, stations.map { it.evaNumber }.toTypedArray())
+            database.bykeyQueries.insertCachedByKey(keyType.name, key, stations.map { it.evaNumber }.toTypedArray())
         }
     }
 
@@ -82,7 +82,7 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
             stations.forEach { station ->
                 station.insert(database)
             }
-            database.cacheQueries.insertCachedByKey(keyType.name, key, stations.map { it.evaNumber }.toTypedArray())
+            database.bykeyQueries.insertCachedByKey(keyType.name, key, stations.map { it.evaNumber }.toTypedArray())
         }
     }
 
@@ -125,12 +125,12 @@ fun String.toKeyType(): KeyType? =
 
 
 fun getStationFromCache(database: Database, keyType: String, key: String): List<RISStation>? {
-    val cache = database.cacheQueries.getStationsByKeyFromCache(keyType, key).executeAsList()
+    val cache = database.bykeyQueries.getStationsByKeyFromCache(keyType, key).executeAsList()
     if (!cache.isEmpty()) {
         val risCache = cache.map { station ->
-            val names = database.cacheQueries.getNamesFromStation(station.evaNumber).executeAsList()
-            val position = database.cacheQueries.getPositionFromStation(station.evaNumber).executeAsOneOrNull()
-            val metropolis = database.cacheQueries.getMetropolisFromStation(station.evaNumber).executeAsList()
+            val names = database.stationQueries.getNamesFromStation(station.evaNumber).executeAsList()
+            val position = database.stationQueries.getPositionFromStation(station.evaNumber).executeAsOneOrNull()
+            val metropolis = database.stationQueries.getMetropolisFromStation(station.evaNumber).executeAsList()
             station.toRISStation(
                 names,
                 metropolis,
@@ -218,7 +218,7 @@ data class RISStation(
     val position: Position? = null
 ) {
     fun insert(database: Database) {
-        database.cacheQueries.insertStationIfNotExists(
+        database.stationQueries.insertStationIfNotExists(
             availableTransports = availableTransports.toTypedArray(),
             stationID = stationID,
             state = state,
@@ -232,21 +232,21 @@ data class RISStation(
             replacementTransportsAvailable = replacementTransportsAvailable,
         )
         if (position != null) {
-            database.cacheQueries.insertPositionIfNotExists(
+            database.stationQueries.insertPositionIfNotExists(
                 evaNumber = evaNumber,
                 latitude = position.latitude.toBigDecimal(),
                 longitude = position.longitude.toBigDecimal()
             )
         }
         metropolis?.entries?.forEach { (countryCode, name) ->
-            database.cacheQueries.insertMetropolisIfNotExists(
+            database.stationQueries.insertMetropolisIfNotExists(
                 evaNumber = evaNumber,
                 countryCode = countryCode,
                 name = name
             )
         }
         names.entries.forEach { (languageCode, name) ->
-            database.cacheQueries.insertNameIfNotExists(
+            database.stationQueries.insertNameIfNotExists(
                 evaNumber = evaNumber,
                 languageCode = languageCode,
                 nameLocal = name.nameLocal,

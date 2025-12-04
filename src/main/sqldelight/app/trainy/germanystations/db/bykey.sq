@@ -1,0 +1,12 @@
+insertCachedByKey:
+INSERT INTO cached_bykeys (
+keyType,
+key,
+evaNumbers
+) VALUES (?, ?, ?)
+ON CONFLICT(keyType, key) DO NOTHING;
+
+getStationsByKeyFromCache:
+SELECT s.* FROM cached_bykeys c
+JOIN stations s ON s.evaNumber = ANY(c.evaNumbers)
+WHERE c.keyType = ? AND c.key = ?;
