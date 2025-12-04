@@ -45,6 +45,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha
+            ${{github.ref_name}}-${{ github.run_number }}
           flavor: latest=${{ github.ref == 'refs/heads/main' }}
       - name: Build and push server Docker image
         uses: docker/build-push-action@v6
