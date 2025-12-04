@@ -39,9 +39,9 @@ suspend fun main() {
     migrate(database, driver)
 
     val risOperator = PrivateRISOperator(
-        baseUrl = Config.RISSTATIONS_BASEURL,
-        clientId = Config.RISSTATIONS_CLIENTID,
-        apiKey = Config.RISSTATIONS_APIKEY,
+        baseUrl = Config.RIS_API_URL,
+        clientId = Config.DB_CLIENT_ID,
+        apiKey = Config.DB_API_KEY,
         fvLines = loadFVLines(),
         iceDescriptions = loadICEDescriptions(),
         cache = CachingOperator.defaultCache

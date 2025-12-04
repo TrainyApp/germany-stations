@@ -9,8 +9,8 @@ object Config : EnvironmentConfig() {
     val POSTGRES_URI by getEnv("jdbc:postgresql://localhost:5432/germanystations")
     val POSTGRES_USER by getEnv("postgres")
     val POSTGRES_PASSWORD by getEnv("postgres")
-    val RISSTATIONS_BASEURL by getEnv()
-    val RISSTATIONS_CLIENTID by getEnv()
-    val RISSTATIONS_APIKEY by getEnv()
+    val RIS_API_URL by getEnv()
+    val DB_CLIENT_ID by getEnv()
+    val DB_API_KEY by getEnv()
     val LOGLEVEL by getEnv(Level.INFO, Level::valueOf)
 }
