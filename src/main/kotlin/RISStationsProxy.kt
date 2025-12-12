@@ -46,10 +46,10 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     get<RISStations.StopPlaces.ByKey> { (key, keyType) ->
         val cache = getStationFromCache(database, keyType.name, key)
         if (cache != null) {
-            call.respond(cache)
+            call.respond(StationSearchResponse(cache))
         } else {
             val stations = risOperator.stationByKeyRequest(key, keyType).body<StationSearchResponse>().stopPlaces
-            call.respond(stations)
+            call.respond(StationSearchResponse(stations))
             stations.forEach { station ->
                 station.insert(database)
             }
