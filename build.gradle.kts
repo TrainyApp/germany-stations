@@ -31,6 +31,8 @@ dependencies {
     implementation(libs.postgresql)
     implementation(libs.hikaricp)
     implementation(libs.logback)
+    implementation(libs.micrometer)
+    implementation(libs.micrometer.prometheus)
 }
 
 tasks.test {

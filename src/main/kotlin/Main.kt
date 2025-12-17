@@ -18,13 +18,18 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.engine.*
+import io.ktor.server.metrics.micrometer.MicrometerMetrics
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import io.ktor.server.resources.*
 import io.ktor.server.resources.post
 import io.ktor.server.response.*
+import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.prometheusmetrics.PrometheusConfig
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import org.slf4j.LoggerFactory
 import java.sql.SQLException
 
@@ -47,8 +52,18 @@ suspend fun main() {
         cache = CachingOperator.defaultCache
     )
 
+    val appMicrometerRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+
+    embeddedServer(Netty, port = Config.MONITORING_PORT, host = Config.HOST) {
+        routing {
+            get("/metrics") {
+                call.respond(appMicrometerRegistry.scrape())
+            }
+        }
+    }.start(wait = false)
+
     embeddedServer(Netty, port = Config.PORT, host = Config.HOST) {
-        module(database, risOperator)
+        module(database, risOperator, appMicrometerRegistry)
     }.start(wait = true)
 }
 
@@ -62,12 +77,15 @@ fun initializeLogging() {
     rootLogger.level = Config.LOGLEVEL
 }
 
-private fun Application.module(database: Database, risOperator: RISOperator) {
+private fun Application.module(database: Database, risOperator: RISOperator, micrometerRegistry: MeterRegistry) {
     install(ContentNegotiation) {
         json(contentType = ContentType(TYPE, "vnd.de.db.ris+json"))
         json()
     }
     install(Resources)
+    install(MicrometerMetrics) {
+        registry = micrometerRegistry
+    }
 
 
     routing {
