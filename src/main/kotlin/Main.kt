@@ -85,6 +85,9 @@ private fun Application.module(database: Database, risOperator: RISOperator, mic
     install(Resources)
     install(MicrometerMetrics) {
         registry = micrometerRegistry
+        timers { call, _ ->
+            tag("cache", call.response.headers["X-Cache"] ?: "none")
+        }
     }
 
 

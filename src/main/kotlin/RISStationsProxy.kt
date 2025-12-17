@@ -27,12 +27,14 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
         val evaNumber = route.specific.evaNumber
         val cache = database.keyQueries.getKeys(evaNumber).executeAsList()
         if (cache.isEmpty()) {
+            call.response.header("X-Cache", "MISS")
             val ris = risOperator.getStationKeys(evaNumber)
             call.respond(ris)
             ris.keys.forEach {
                 database.keyQueries.insertKey(evaNumber, it.type.name, it.key)
             }
         } else {
+            call.response.header("X-Cache", "HIT")
             call.respond(
                 StationKeys(
                     cache.mapNotNull {
@@ -46,8 +48,10 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     get<RISStations.StopPlaces.ByKey> { (key, keyType) ->
         val cache = getStationFromCache(database, keyType.name, key)
         if (cache != null) {
+            call.response.header("X-Cache", "HIT")
             call.respond(StationSearchResponse(cache))
         } else {
+            call.response.header("X-Cache", "MISS")
             val stations = risOperator.stationByKeyRequest(key, keyType).body<StationSearchResponse>().stopPlaces
             call.respond(StationSearchResponse(stations))
             stations.forEach { station ->
@@ -62,6 +66,8 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
         val cachedKeys = keys.map {
             Pair(it.key, getStationFromCache(database, keyType.name, it.key))
         }
+        call.response.header("X-Cache",
+            cachedKeys.joinToString(", ") { (_, stations) -> if (stations == null) "MISS" else "HIT" })
         val fetched = cachedKeys.filter { (_, stations) ->
             stations == null
         }.map { (key, _) ->
@@ -93,6 +99,7 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
             groupBy = route.groupBy,
             sortBy = route.sortBy
         )
+        call.response.header("X-Cache", "BYPASS")
         call.respond(ris.body<app.trainy.operator.client.operator.db.ris.StationSearchResponse>())
     }
 
@@ -104,6 +111,7 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
             groupBy = route.groupBy,
             limit = route.limit ?: 10
         )
+        call.response.header("X-Cache", "BYPASS")
         call.respond(ris.body<app.trainy.operator.client.operator.db.ris.StationSearchResponse>())
     }
 }
