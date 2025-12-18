@@ -66,8 +66,17 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
         val cachedKeys = keys.map {
             Pair(it.key, getStationFromCache(database, keyType.name, it.key))
         }
-        call.response.header("X-Cache",
+        call.response.header("X-Cache-Full",
             cachedKeys.joinToString(", ") { (_, stations) -> if (stations == null) "MISS" else "HIT" })
+        call.response.header("X-Cache-Hits",
+            cachedKeys.count { (_, stations) -> stations != null }.toString())
+        call.response.header("X-Cache-Misses",
+            cachedKeys.count { (_, stations) -> stations == null }.toString())
+        call.response.header("X-Cache", when {
+            cachedKeys.all { (_, stations) -> stations != null } -> "HIT"
+            cachedKeys.none { (_, stations) -> stations != null } -> "MISS"
+            else -> "PARTIAL"
+        })
         val fetched = cachedKeys.filter { (_, stations) ->
             stations == null
         }.map { (key, _) ->
