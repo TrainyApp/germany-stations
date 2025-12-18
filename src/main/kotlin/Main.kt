@@ -87,11 +87,9 @@ private fun Application.module(database: Database, risOperator: RISOperator, mic
         registry = micrometerRegistry
         timers { call, _ ->
             tag("cache", call.response.headers["X-Cache"] ?: "none")
-            if (call.response.headers.contains("X-Cache-Full")) {
-                tag("cache_full", call.response.headers["X-Cache-Full"] ?: "none")
-                tag("cache_hits", call.response.headers["X-Cache-Hits"] ?: "none")
-                tag("cache_misses", call.response.headers["X-Cache-Misses"] ?: "none")
-            }
+            tag("cache_full", call.response.headers["X-Cache-Full"] ?: "none")
+            tag("cache_hits", call.response.headers["X-Cache-Hits"] ?: "0")
+            tag("cache_misses", call.response.headers["X-Cache-Misses"] ?: "0")
         }
     }
 
