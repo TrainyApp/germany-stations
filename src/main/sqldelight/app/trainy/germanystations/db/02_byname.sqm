@@ -1,0 +1,15 @@
+ALTER TABLE stations
+ALTER COLUMN timeZone DROP NOT NULL,
+ALTER COLUMN countryCode DROP NOT NULL,
+ALTER COLUMN transportAssociations DROP NOT NULL,
+ALTER COLUMN availablePhysicalTransports DROP NOT NULL,
+ALTER COLUMN availableTransports DROP NOT NULL;
+
+CREATE TABLE IF NOT EXISTS cached_byname (
+    name text NOT NULL,
+    evaNumbers text[] NOT NULL,
+    groupBy text,
+    sortBy text,
+    PRIMARY KEY(name, groupBy, sortBy),
+    UNIQUE(name, groupBy, sortBy)
+);

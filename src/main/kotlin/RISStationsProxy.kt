@@ -46,7 +46,10 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     }
 
     get<RISStations.StopPlaces.ByKey> { (key, keyType) ->
-        val cache = getStationFromCache(database, keyType.name, key)
+        val cache = getStationsFromCache(
+            database,
+            database.bykeyQueries.getStationsByKeyFromCache(keyType.name, key).executeAsList()
+        )
         if (cache != null) {
             call.response.header("X-Cache", "HIT")
             call.respond(StationSearchResponse(cache))
@@ -64,19 +67,30 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     post<RISStations.StopPlaces.ByKeys> {
         val (keyType, keys) = call.receive<StationKeySearchRequest>()
         val cachedKeys = keys.map {
-            Pair(it.key, getStationFromCache(database, keyType.name, it.key))
+            Pair(
+                it.key, getStationsFromCache(
+                    database,
+                    database.bykeyQueries.getStationsByKeyFromCache(keyType.name, it.key).executeAsList()
+                )
+            )
         }
-        call.response.header("X-Cache-Full",
+        call.response.header(
+            "X-Cache-Full",
             cachedKeys.joinToString(", ") { (_, stations) -> if (stations == null) "MISS" else "HIT" })
-        call.response.header("X-Cache-Hits",
-            cachedKeys.count { (_, stations) -> stations != null }.toString())
-        call.response.header("X-Cache-Misses",
-            cachedKeys.count { (_, stations) -> stations == null }.toString())
-        call.response.header("X-Cache", when {
-            cachedKeys.all { (_, stations) -> stations != null } -> "HIT"
-            cachedKeys.none { (_, stations) -> stations != null } -> "MISS"
-            else -> "PARTIAL"
-        })
+        call.response.header(
+            "X-Cache-Hits",
+            cachedKeys.count { (_, stations) -> stations != null }.toString()
+        )
+        call.response.header(
+            "X-Cache-Misses",
+            cachedKeys.count { (_, stations) -> stations == null }.toString()
+        )
+        call.response.header(
+            "X-Cache", when {
+                cachedKeys.all { (_, stations) -> stations != null } -> "HIT"
+                cachedKeys.none { (_, stations) -> stations != null } -> "MISS"
+                else -> "PARTIAL"
+            })
         val fetched = cachedKeys.filter { (_, stations) ->
             stations == null
         }.map { (key, _) ->
@@ -102,14 +116,40 @@ fun Route.RISStationsProxy(database: Database, risOperator: RISOperator) {
     }
 
     get<RISStations.StopPlaces.ByName> { route ->
-        val ris = risOperator.searchStationsRequest(
-            query = route.query,
-            limit = route.limit ?: 10,
-            groupBy = route.groupBy,
-            sortBy = route.sortBy
-        )
-        call.response.header("X-Cache", "BYPASS")
-        call.respond(ris.body<app.trainy.operator.client.operator.db.ris.StationSearchResponse>())
+        val exists = database.bynameQueries.queryExists(
+            name = route.query,
+            groupBy = route.groupBy?.name ?: "NULL",
+            sortBy = route.groupBy?.name ?: "NULL",
+        ).executeAsOneOrNull()
+        if (exists == 1) {
+            val cache = getStationsFromCache(
+                database, database.bynameQueries.getStationsByName(
+                    name = route.query,
+                    groupBy = route.groupBy?.name ?: "NULL",
+                    sortBy = route.groupBy?.name ?: "NULL",
+                ).executeAsList()
+            )
+            call.response.header("X-Cache", "HIT")
+            call.respond(StationSearchResponse(cache ?: emptyList()))
+        } else {
+            val stations = risOperator.searchStationsRequest(
+                query = route.query,
+                limit = route.limit ?: 10,
+                groupBy = route.groupBy,
+                sortBy = route.sortBy
+            ).body<StationSearchResponse>()
+            call.response.header("X-Cache", "MISS")
+            call.respond(stations)
+            stations.stopPlaces.forEach { station ->
+                station.insert(database)
+            }
+            database.bynameQueries.insertCachedByName(
+                name = route.query,
+                groupBy = route.groupBy?.name ?: "NULL",
+                sortBy = route.groupBy?.name ?: "NULL",
+                evaNumbers = stations.stopPlaces.map { it.evaNumber }.toTypedArray(),
+            )
+        }
     }
 
     get<RISStations.StopPlaces.ByPosition> { route ->
@@ -141,10 +181,9 @@ fun String.toKeyType(): KeyType? =
     }
 
 
-fun getStationFromCache(database: Database, keyType: String, key: String): List<RISStation>? {
-    val cache = database.bykeyQueries.getStationsByKeyFromCache(keyType, key).executeAsList()
-    if (!cache.isEmpty()) {
-        val risCache = cache.map { station ->
+fun getStationsFromCache(database: Database, stations: List<Stations>): List<RISStation>? {
+    if (!stations.isEmpty()) {
+        val risCache = stations.map { station ->
             val names = database.stationQueries.getNamesFromStation(station.evaNumber).executeAsList()
             val position = database.stationQueries.getPositionFromStation(station.evaNumber).executeAsOneOrNull()
             val metropolis = database.stationQueries.getMetropolisFromStation(station.evaNumber).executeAsList()
@@ -165,10 +204,10 @@ fun Stations.toRISStation(names: List<Names>, metropolis: List<Metropolises>, po
         stationID = stationID,
         names = names.associate { it.languageCode to it.toRISName() },
         metropolis = metropolis.associate { it.countryCode to it.name },
-        availableTransports = availableTransports.toList(),
+        availableTransports = availableTransports?.toList(),
         replacementTransportsAvailable = replacementTransportsAvailable,
-        availablePhysicalTransports = availablePhysicalTransports.toList(),
-        transportAssociations = transportAssociations.toList(),
+        availablePhysicalTransports = availablePhysicalTransports?.toList(),
+        transportAssociations = transportAssociations?.toList(),
         countryCode = countryCode,
         postalCode = postalCode,
         state = state,
@@ -223,20 +262,20 @@ data class RISStation(
     val stationID: String? = null,
     val names: Map<String, Name>,
     val metropolis: Map<String, String>? = null,
-    val availableTransports: List<String>,
+    val availableTransports: List<String>? = null,
     val replacementTransportsAvailable: Boolean? = null,
-    val availablePhysicalTransports: List<String>,
-    val transportAssociations: List<String>,
-    val countryCode: String,
+    val availablePhysicalTransports: List<String>? = null,
+    val transportAssociations: List<String>? = null,
+    val countryCode: String? = null,
     val postalCode: String? = null,
     val state: String? = null,
     val municipalityKey: String? = null,
-    val timeZone: String,
+    val timeZone: String? = null,
     val position: Position? = null
 ) {
     fun insert(database: Database) {
         database.stationQueries.insertStationIfNotExists(
-            availableTransports = availableTransports.toTypedArray(),
+            availableTransports = availableTransports?.toTypedArray(),
             stationID = stationID,
             state = state,
             evaNumber = evaNumber,
@@ -244,8 +283,8 @@ data class RISStation(
             postalCode = postalCode,
             countryCode = countryCode,
             municipalityKey = municipalityKey,
-            transportAssociations = transportAssociations.toTypedArray(),
-            availablePhysicalTransports = availablePhysicalTransports.toTypedArray(),
+            transportAssociations = transportAssociations?.toTypedArray(),
+            availablePhysicalTransports = availablePhysicalTransports?.toTypedArray(),
             replacementTransportsAvailable = replacementTransportsAvailable,
         )
         if (position != null) {

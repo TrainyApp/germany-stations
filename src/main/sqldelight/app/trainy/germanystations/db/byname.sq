@@ -1,0 +1,16 @@
+insertCachedByName:
+INSERT INTO cached_byname (
+name,
+evaNumbers,
+groupBy,
+sortBy
+) VALUES (?, ?, ?, ?)
+ON CONFLICT(name, groupBy, sortBy) DO NOTHING;
+
+queryExists:
+SELECT 1 FROM cached_byname WHERE name = ? AND groupBy = ? AND sortBy = ?;
+
+getStationsByName:
+SELECT s.* FROM cached_byname c
+JOIN stations s ON s.evaNumber = ANY(c.evaNumbers)
+WHERE c.name = ? AND c.groupBy = ? AND c.sortBy = ?;
