@@ -7,7 +7,7 @@ SELECT * FROM positions WHERE evaNumber = ?;
 getMetropolisFromStation:
 SELECT * FROM metropolises WHERE evaNumber = ?;
 
-insertStationIfNotExists:
+upsertStation:
 INSERT INTO stations (
     availablePhysicalTransports,
     availableTransports,
@@ -22,25 +22,39 @@ INSERT INTO stations (
     transportAssociations
 )
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(evaNumber) DO NOTHING;
+ON CONFLICT(evaNumber) DO UPDATE SET
+    availablePhysicalTransports = COALESCE(excluded.availablePhysicalTransports, stations.availablePhysicalTransports),
+    availableTransports = COALESCE(excluded.availableTransports, stations.availableTransports),
+    countryCode = COALESCE(excluded.countryCode, stations.countryCode),
+    municipalityKey = COALESCE(excluded.municipalityKey, stations.municipalityKey),
+    postalCode = COALESCE(excluded.postalCode, stations.postalCode),
+    replacementTransportsAvailable = COALESCE(excluded.replacementTransportsAvailable, stations.replacementTransportsAvailable),
+    state = COALESCE(excluded.state, stations.state),
+    stationID = COALESCE(excluded.stationID, stations.stationID),
+    timeZone = COALESCE(excluded.timeZone, stations.timeZone),
+    transportAssociations = COALESCE(excluded.transportAssociations, stations.transportAssociations);
 
-insertPositionIfNotExists:
+upsertPosition:
 INSERT INTO positions (
     evaNumber,
     latitude,
     longitude
 ) VALUES (?, ?, ?)
-ON CONFLICT(evaNumber) DO NOTHING;
+ON CONFLICT(evaNumber) DO UPDATE SET
+    latitude = COALESCE(excluded.latitude, positions.latitude),
+    longitude = COALESCE(excluded.longitude, positions.longitude);
 
-insertMetropolisIfNotExists:
+upsertMetropolis:
 INSERT INTO metropolises (
     evaNumber,
     name,
     countryCode
 ) VALUES (?, ?, ?)
-ON CONFLICT(evaNumber) DO NOTHING;
+ON CONFLICT(evaNumber) DO UPDATE SET
+    name = COALESCE(excluded.name, metropolises.name),
+    countryCode = COALESCE(excluded.countryCode, metropolises.countryCode);
 
-insertNameIfNotExists:
+upsertName:
 INSERT INTO names (
 evaNumber,
 languageCode,
@@ -52,7 +66,15 @@ speechShort,
 symbol,
 synonyms
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(evaNumber) DO NOTHING;
+ON CONFLICT(evaNumber) DO UPDATE SET
+    languageCode = COALESCE(excluded.languageCode, names.languageCode),
+    nameLocal = COALESCE(excluded.nameLocal, names.nameLocal),
+    nameLong = COALESCE(excluded.nameLong, names.nameLong),
+    nameShort = COALESCE(excluded.nameShort, names.nameShort),
+    speechLong = COALESCE(excluded.speechLong, names.speechLong),
+    speechShort = COALESCE(excluded.speechShort, names.speechShort),
+    symbol = COALESCE(excluded.symbol, names.symbol),
+    synonyms = COALESCE(excluded.synonyms, names.synonyms);
 
 getStationFromEvaNumber:
 SELECT * FROM stations WHERE evaNumber = ?;

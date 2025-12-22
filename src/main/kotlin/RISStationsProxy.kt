@@ -274,7 +274,7 @@ data class RISStation(
     val position: Position? = null
 ) {
     fun insert(database: Database) {
-        database.stationQueries.insertStationIfNotExists(
+        database.stationQueries.upsertStation(
             availableTransports = availableTransports?.toTypedArray(),
             stationID = stationID,
             state = state,
@@ -288,21 +288,21 @@ data class RISStation(
             replacementTransportsAvailable = replacementTransportsAvailable,
         )
         if (position != null) {
-            database.stationQueries.insertPositionIfNotExists(
+            database.stationQueries.upsertPosition(
                 evaNumber = evaNumber,
                 latitude = position.latitude.toBigDecimal(),
                 longitude = position.longitude.toBigDecimal()
             )
         }
         metropolis?.entries?.forEach { (countryCode, name) ->
-            database.stationQueries.insertMetropolisIfNotExists(
+            database.stationQueries.upsertMetropolis(
                 evaNumber = evaNumber,
                 countryCode = countryCode,
                 name = name
             )
         }
         names.entries.forEach { (languageCode, name) ->
-            database.stationQueries.insertNameIfNotExists(
+            database.stationQueries.upsertName(
                 evaNumber = evaNumber,
                 languageCode = languageCode,
                 nameLocal = name.nameLocal,
